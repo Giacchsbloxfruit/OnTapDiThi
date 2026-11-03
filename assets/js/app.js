@@ -28,6 +28,8 @@ let exams = [];
 let currentUser = null;
 let isAdmin = false;
 let accountRole = "guest";
+let topMode = "score";
+let leaderboardRows = [];
 let accountProfile = null;
 let authMode = "login";
 let activePractice = null;
@@ -142,29 +144,30 @@ function renderSubjectCards() {
 function renderStats() {
   const history = getHistory();
   const attempts = history.reduce((sum, item) => sum + (item.total || 0), 0);
-  const correct = history.reduce((sum, item) => sum + (item.correct || 0), 0);
   const examCount = history.filter(item => item.kind === "exam").length;
+  const streak = Math.max(0, Number(accountProfile?.stats?.streak) || 0);
   $("#statAnswered").textContent = attempts;
-  $("#statAccuracy").textContent = attempts ? `${Math.round(correct / attempts * 100)}%` : "—";
+  $("#statStreak").textContent = `${streak} ngày`;
   $("#statExams").textContent = examCount;
   $("#demoHint").hidden = firebaseReady;
 }
 function switchView(name) {
-  const viewNames = ["home", "practice", "exams", "history", "community", "admin"];
+  const viewNames = ["home", "practice", "exams", "history", "top", "community", "admin"];
   if (!viewNames.includes(name)) name = "home";
-  if (name === "admin" && !isAdmin) {
-    toast("Bạn cần đăng nhập bằng tài khoản quản trị để sử dụng khu vực này.", "error");
-    openAuth();
+  if (name === "admin" && (!firebaseReady || !currentUser || !isAdmin)) {
+    toast("Khu vực quản trị chỉ dành cho tài khoản có quyền Admin.", "error");
+    if (!currentUser) openAuth();
     return;
   }
   $$(".view").forEach(v => v.classList.toggle("active", v.id === `view-${name}`));
   $$(".nav-item[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view === name));
-  const titles = { home: "Tổng quan", practice: "Luyện tập", exams: "Thi thử", history: "Lịch sử học", community: "Cộng đồng", admin: "Quản trị câu hỏi" };
+  const titles = { home: "Tổng quan", practice: "Luyện tập", exams: "Thi thử", history: "Lịch sử học", top: "TOP", community: "Cộng đồng", admin: "Quản trị câu hỏi" };
   $("#pageTitle").textContent = titles[name];
   $("#sidebar").classList.remove("open");
   if (name === "history") renderHistory();
   if (name === "exams") renderExams();
   if (name === "admin") renderAdminQuestions();
+  if (name === "top") loadTop();
   if (name === "community") loadCommunity();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -349,6 +352,7 @@ function renderExamResult(result, autoSubmitted = false) {
 }
 
 async function saveQuestionRecord(question) {
+  if (!firebaseReady || !currentUser || !isAdmin) throw new Error("Chỉ tài khoản Admin đã đăng nhập mới được quản lý câu hỏi.");
   if (!firebaseReady) {
     const index = questions.findIndex(q => q.id === question.id);
     if (index >= 0) questions[index] = question; else questions.unshift(question);
@@ -367,6 +371,7 @@ async function saveQuestionRecord(question) {
   if (index >= 0) questions[index] = question; else questions.unshift(question);
 }
 async function deleteQuestionRecord(id) {
+  if (!firebaseReady || !currentUser || !isAdmin) throw new Error("Chỉ tài khoản Admin đã đăng nhập mới được xóa câu hỏi.");
   if (!firebaseReady) {
     questions = questions.filter(q => q.id !== id);
     writeLocal(QUESTIONS_KEY, questions);
@@ -380,6 +385,12 @@ async function deleteQuestionRecord(id) {
   questions = questions.filter(q => q.id !== id);
 }
 function renderAdminQuestions() {
+  if (!firebaseReady || !currentUser || !isAdmin) {
+    $("#questionTotal").textContent = "—";
+    $("#exportQuestionCount").textContent = "—";
+    $("#adminQuestionList").innerHTML = '<div class="empty-list">Khu vực này chỉ hiển thị với tài khoản Admin.</div>';
+    return;
+  }
   $("#questionTotal").textContent = questions.length;
   $("#exportQuestionCount").textContent = `${questions.length} câu hỏi`;
   const keyword = ($("#questionSearch").value || "").trim().toLocaleLowerCase("vi");
@@ -394,6 +405,7 @@ function resetQuestionForm() {
   $("#qCorrect").value = "A";
 }
 function editQuestion(id) {
+  if (!firebaseReady || !currentUser || !isAdmin) return;
   const q = questions.find(item => item.id === id);
   if (!q) return;
   $("#editQuestionId").value = id;
@@ -408,7 +420,7 @@ function editQuestion(id) {
 }
 async function handleQuestionSubmit(event) {
   event.preventDefault();
-  if (firebaseReady && !isAdmin) { toast("Bạn cần quyền quản trị để lưu câu hỏi lên Firebase.", "error"); return; }
+  if (!firebaseReady || !currentUser || !isAdmin) { toast("Chỉ tài khoản Admin đã đăng nhập mới được lưu câu hỏi.", "error"); return; }
   const options = Object.fromEntries(letters.filter(letter => $(`#opt${letter}`).value.trim()).map(letter => [letter, $(`#opt${letter}`).value.trim()]));
   const correctAnswer = $("#qCorrect").value;
   if (!options[correctAnswer]) { toast("Đáp án đúng phải có nội dung.", "error"); return; }
@@ -421,7 +433,7 @@ async function handleQuestionSubmit(event) {
 }
 async function makeExam(event) {
   event.preventDefault();
-  if (firebaseReady && !isAdmin) { toast("Bạn cần quyền quản trị để tạo đề thi.", "error"); return; }
+  if (!firebaseReady || !currentUser || !isAdmin) { toast("Chỉ tài khoản Admin đã đăng nhập mới được tạo đề thi.", "error"); return; }
   const subject = $("#newExamSubject").value;
   const topic = $("#newExamTopic").value;
   const count = Number($("#newExamCount").value);
@@ -463,7 +475,7 @@ function normalizeQuestion(raw, index) {
 }
 async function runImport() {
   if (!importFileContent) return;
-  if (firebaseReady && !isAdmin) { toast("Bạn cần quyền quản trị để nhập dữ liệu.", "error"); return; }
+  if (!firebaseReady || !currentUser || !isAdmin) { toast("Chỉ tài khoản Admin đã đăng nhập mới được nhập dữ liệu.", "error"); return; }
   const status = $("#importStatus");
   try {
     const parsed = JSON.parse(importFileContent);
@@ -478,6 +490,7 @@ async function runImport() {
   } catch (error) { status.textContent = error.message; toast(error.message, "error"); }
 }
 function exportQuestions() {
+  if (!firebaseReady || !currentUser || !isAdmin) { toast("Chỉ tài khoản Admin mới được xuất kho câu hỏi.", "error"); return; }
   const payload = { app: "OnTap", version: 1, exportedAt: new Date().toISOString(), questions };
   downloadFile("ontap-question-bank.json", JSON.stringify(payload, null, 2), "application/json");
 }
@@ -508,23 +521,83 @@ async function ensureUserProfile(user) {
   const fresh = await firebaseSdk.get(profileRef);
   return fresh.val() || base;
 }
+function renderTop() {
+  const scoreMode = topMode === "score";
+  const rows = [...leaderboardRows].sort((a, b) => {
+    const primary = scoreMode ? (Number(b.totalScore) || 0) - (Number(a.totalScore) || 0) : (Number(b.streak) || 0) - (Number(a.streak) || 0);
+    if (primary) return primary;
+    const secondary = scoreMode ? (Number(b.streak) || 0) - (Number(a.streak) || 0) : (Number(b.totalScore) || 0) - (Number(a.totalScore) || 0);
+    return secondary || String(a.displayName || "").localeCompare(String(b.displayName || ""), "vi");
+  }).slice(0, 50);
+  $("#topHeading").textContent = scoreMode ? "TOP điểm tích lũy" : "TOP chuỗi ngày học";
+  $("#topDescription").textContent = scoreMode
+    ? "Xếp hạng theo tổng điểm tích lũy. Khi bằng điểm, thành viên có chuỗi dài hơn được xếp trước."
+    : "Xếp hạng theo số ngày học liên tiếp. Khi bằng chuỗi, thành viên có tổng điểm cao hơn được xếp trước.";
+  $("#topList").innerHTML = rows.length ? rows.map((row, index) => {
+    const primary = scoreMode ? (Number(row.totalScore) || 0) : (Number(row.streak) || 0);
+    const secondary = scoreMode ? `${Number(row.streak) || 0} ngày liên tiếp` : `${Number(row.totalScore) || 0} điểm tích lũy`;
+    const position = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
+    const isYou = currentUser && row.uid === currentUser.uid;
+    return `<div class="top-row${isYou ? " is-you" : ""}">
+      <div class="top-position">${position}</div>
+      <div class="top-user"><strong>${escapeHtml(row.displayName || "Học sinh")}${isYou ? '<span class="you-tag">Bạn</span>' : ""}</strong><small>${secondary}</small></div>
+      <div class="top-value"><strong>${primary.toLocaleString("vi-VN")}</strong><small>${scoreMode ? "điểm" : "ngày"}</small></div>
+    </div>`;
+  }).join("") : '<div class="empty-list">Chưa có thành viên trên bảng xếp hạng. Hãy hoàn thành một lượt học để ghi nhận thành tích.</div>';
+}
+async function loadTop() {
+  if (!firebaseReady) {
+    leaderboardRows = [];
+    $("#topList").innerHTML = '<div class="empty-list">Bảng TOP trực tuyến sẽ hiển thị sau khi kết nối Firebase.</div>';
+    return;
+  }
+  $("#topList").innerHTML = '<div class="empty-list">Đang tải bảng xếp hạng...</div>';
+  try {
+    const boardSnap = await firebaseSdk.get(firebaseSdk.ref(database, "leaderboard"));
+    leaderboardRows = boardSnap.exists()
+      ? Object.entries(boardSnap.val()).map(([uid, row]) => ({ uid, ...row }))
+      : [];
+    renderTop();
+  } catch (error) {
+    console.warn("Leaderboard load failed", error);
+    $("#topList").innerHTML = '<div class="empty-list">Không tải được TOP. Hãy kiểm tra quyền đọc leaderboard trong Firebase Rules.</div>';
+  }
+}
 async function loadCommunity() {
-  if (!firebaseReady) { $("#leaderboardList").innerHTML = '<div class="empty-list">Kết nối Firebase để xem bảng xếp hạng online.</div>'; return; }
+  if (!firebaseReady || !currentUser) {
+    $("#profileStreak").textContent = "0";
+    $("#profileScore").textContent = "0";
+    $("#profileRank").textContent = "—";
+    $("#profileDetails").textContent = "Đăng nhập để xem UID, thông tin phiên và đồng bộ hồ sơ.";
+    return;
+  }
   try {
     const [boardSnap, profileSnap] = await Promise.all([
-      firebaseSdk.get(firebaseSdk.query(firebaseSdk.ref(database, "leaderboard"), firebaseSdk.orderByChild("rankingScore"), firebaseSdk.limitToLast(50))),
-      currentUser ? firebaseSdk.get(firebaseSdk.ref(database, `users/${currentUser.uid}/profile`)) : Promise.resolve(null)
+      firebaseSdk.get(firebaseSdk.ref(database, "leaderboard")),
+      firebaseSdk.get(firebaseSdk.ref(database, `users/${currentUser.uid}/profile`))
     ]);
-    const rows = boardSnap.exists() ? Object.entries(boardSnap.val()).map(([uid, row]) => ({ uid, ...row })).sort((a,b) => (b.rankingScore||0)-(a.rankingScore||0)) : [];
-    $("#leaderboardList").innerHTML = rows.length ? rows.map((row,i) => `<div class="history-row"><div class="history-type">${i+1}</div><div class="history-copy"><strong>${escapeHtml(row.displayName || "Học sinh")}</strong><small>${Number(row.streak||0)} ngày liên tiếp · ${Number(row.totalScore||0)} điểm</small></div><span class="history-score">${Number(row.rankingScore||0)}</span></div>`).join("") : '<div class="empty-list">Chưa có thành viên trên bảng xếp hạng.</div>';
-    if (profileSnap?.exists()) {
-      const p = profileSnap.val(); const st = p.stats || {};
-      $("#profileStreak").textContent = st.streak || 0; $("#profileScore").textContent = st.totalScore || 0;
-      const rank = rows.findIndex(x => x.uid === currentUser.uid); $("#profileRank").textContent = rank >= 0 ? `#${rank+1}` : "—";
-      const last = p.lastLogin || {}; const d = last.device || {};
-      $("#profileDetails").innerHTML = `<div><b>Email:</b> ${escapeHtml(p.email || currentUser.email || "")}</div><div><b>UID:</b> <code>${escapeHtml(currentUser.uid)}</code></div><div><b>Quyền:</b> ${escapeHtml(accountRole)}</div><div><b>Đăng nhập gần nhất:</b> ${last.timestamp ? new Date(last.timestamp).toLocaleString("vi-VN") : "—"}</div><div><b>Thiết bị:</b> ${escapeHtml([d.platform,d.browser].filter(Boolean).join(" · ") || "Chưa có dữ liệu")}</div>`;
-    } else { $("#profileDetails").textContent = "Bạn đang dùng chế độ khách. Đăng nhập để xem UID và đồng bộ hồ sơ."; }
-  } catch (e) { console.warn(e); $("#leaderboardList").innerHTML = '<div class="empty-list">Không tải được bảng xếp hạng. Kiểm tra Firebase Rules.</div>'; }
+    const rows = boardSnap.exists()
+      ? Object.entries(boardSnap.val()).map(([uid, row]) => ({ uid, ...row })).sort((a, b) => (Number(b.rankingScore) || 0) - (Number(a.rankingScore) || 0))
+      : [];
+    if (profileSnap.exists()) {
+      const profile = profileSnap.val();
+      const stats = profile.stats || {};
+      accountProfile = { ...(accountProfile || {}), ...profile };
+      $("#profileStreak").textContent = Number(stats.streak) || 0;
+      $("#profileScore").textContent = Number(stats.totalScore) || 0;
+      const rank = rows.findIndex(row => row.uid === currentUser.uid);
+      $("#profileRank").textContent = rank >= 0 ? `#${rank + 1}` : "—";
+      const last = profile.lastLogin || {};
+      const device = last.device || {};
+      $("#profileDetails").innerHTML = `<div><b>Email:</b> ${escapeHtml(profile.email || currentUser.email || "")}</div><div><b>UID:</b> <code>${escapeHtml(currentUser.uid)}</code></div><div><b>Quyền:</b> ${escapeHtml(accountRole)}</div><div><b>Đăng nhập gần nhất:</b> ${last.timestamp ? new Date(last.timestamp).toLocaleString("vi-VN") : "—"}</div><div><b>Thiết bị:</b> ${escapeHtml([device.platform, device.browser].filter(Boolean).join(" · ") || "Chưa có dữ liệu")}</div>`;
+      renderStats();
+    } else {
+      $("#profileDetails").textContent = "Chưa tìm thấy hồ sơ tài khoản.";
+    }
+  } catch (error) {
+    console.warn("Community profile load failed", error);
+    $("#profileDetails").textContent = "Không tải được hồ sơ. Hãy kiểm tra Firebase Rules.";
+  }
 }
 async function createBattleRoom() {
   if (!currentUser || !firebaseReady) { toast("Bạn cần đăng nhập để tạo phòng đấu.", "error"); openAuth(); return; }
@@ -583,7 +656,11 @@ async function handleSignOut() {
   catch (error) { toast(error.message || "Không thể đăng xuất.", "error"); }
 }
 async function onUserChanged(user) {
-  currentUser = user; isAdmin = !firebaseReady; accountRole = !firebaseReady ? "demo-admin" : "guest"; accountProfile = null;
+  currentUser = user;
+  isAdmin = false;
+  accountRole = user ? "member" : "guest";
+  accountProfile = null;
+
   if (user && firebaseReady) {
     try {
       accountProfile = await ensureUserProfile(user);
@@ -593,16 +670,39 @@ async function onUserChanged(user) {
       ]);
       isAdmin = adminSnap.val() === true;
       accountRole = isAdmin ? "admin" : vipSnap.val() === true ? "vip" : "member";
-      if (isAdmin) { const keysSnapshot = await firebaseSdk.get(firebaseSdk.ref(database, "questionKeys")); const keys = keysSnapshot.val() || {}; questions = questions.map(q => ({ ...q, ...(keys[q.id] || {}) })); }
-    } catch (error) { console.warn("Account profile load failed", error); }
+      if (isAdmin) {
+        const keysSnapshot = await firebaseSdk.get(firebaseSdk.ref(database, "questionKeys"));
+        const keys = keysSnapshot.val() || {};
+        questions = questions.map(question => ({ ...question, ...(keys[question.id] || {}) }));
+      }
+    } catch (error) {
+      isAdmin = false;
+      accountRole = "member";
+      console.warn("Account role verification failed", error);
+      toast("Không xác minh được quyền tài khoản. Khu vực quản trị đã bị khóa.", "error");
+    }
   }
+
   const name = accountProfile?.displayName || user?.email || "Khách học tập";
-  const roleNames = { "demo-admin":"Quản trị demo · lưu trên máy", admin:"Quản trị viên", vip:"Thành viên VIP", member:"Thành viên", guest:"Chế độ khách" };
-  $("#userName").textContent = name; $("#userRole").textContent = roleNames[accountRole] || "Thành viên";
-  $("#avatar").textContent = name.slice(0, 1).toUpperCase(); $("#topAuthButton").textContent = name.slice(0, 1).toUpperCase();
-  $("#authButton").textContent = user ? "↪" : "↗"; $("#authButton").title = user ? "Đăng xuất" : "Đăng nhập";
-  $("#adminNav").hidden = !isAdmin; $("#adminWarning").hidden = !firebaseReady || isAdmin;
-  renderAdminQuestions(); if (firebaseReady && user) await refreshHistory();
+  const roleNames = { admin: "Quản trị viên", vip: "Thành viên VIP", member: "Thành viên", guest: "Chế độ khách" };
+  $("#userName").textContent = name;
+  $("#userRole").textContent = roleNames[accountRole] || "Thành viên";
+  $("#avatar").textContent = name.slice(0, 1).toUpperCase();
+  $("#topAuthButton").textContent = name.slice(0, 1).toUpperCase();
+  $("#authButton").textContent = user ? "↪" : "↗";
+  $("#authButton").title = user ? "Đăng xuất" : "Đăng nhập";
+
+  $("#adminNavLabel").hidden = !isAdmin;
+  $("#adminNavContainer").hidden = !isAdmin;
+  $("#adminNav").hidden = !isAdmin;
+  $("#view-admin").hidden = !isAdmin;
+  $("#adminWarning").hidden = true;
+
+  if (!isAdmin && $("#view-admin").classList.contains("active")) switchView("home");
+  renderAdminQuestions();
+  renderStats();
+  if (firebaseReady && user) await refreshHistory();
+  if ($("#view-top")?.classList.contains("active")) await loadTop();
   if ($("#view-community")?.classList.contains("active")) await loadCommunity();
 }
 
@@ -619,6 +719,15 @@ function wireEvents() {
   $("#startPractice").addEventListener("click", startPractice);
   $("#createBattle").addEventListener("click", createBattleRoom);
   $("#joinBattle").addEventListener("click", joinBattleRoom);
+  $$("[data-top-mode]").forEach(button => button.addEventListener("click", () => {
+    topMode = button.dataset.topMode === "streak" ? "streak" : "score";
+    $$("[data-top-mode]").forEach(tab => {
+      const active = tab === button;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", String(active));
+    });
+    renderTop();
+  }));
   $("#practiceSubject").addEventListener("change", updateTopicSelects);
   $("#newExamSubject").addEventListener("change", updateTopicSelects);
   $("#examSubjectFilter").addEventListener("change", renderExams);
