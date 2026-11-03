@@ -713,13 +713,6 @@ function wireEvents() {
     event.preventDefault();
     switchView(button.dataset.view);
   }));
-  $("#sidebar").addEventListener("click", event => {
-    const button = event.target.closest(".nav-item[data-view]");
-    if (button && !button.hidden && button.dataset.view !== "admin") {
-      event.preventDefault();
-      switchView(button.dataset.view);
-    }
-  });
   $$('[data-go]').forEach(button => button.addEventListener("click", () => switchView(button.dataset.go)));
   $("#menuButton").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
   $("#authButton").addEventListener("click", () => currentUser ? handleSignOut() : openAuth());
