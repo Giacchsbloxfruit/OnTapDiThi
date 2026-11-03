@@ -194,3 +194,23 @@ Ghi chú:
 - **Đăng nhập không chạy trên GitHub Pages:** thêm tên miền `*.github.io` vào Authorized domains.
 - **Thi thử không nộp được:** kiểm tra Cloud Functions đã deploy, project đã bật billing phù hợp và file env có `FIREBASE_DATABASE_URL` đúng chưa.
 - **Không tải được module:** đảm bảo website đang được mở qua HTTP/HTTPS, không mở trực tiếp bằng `file://`.
+
+## 11. Tài khoản, hồ sơ, bảng xếp hạng và cộng đồng (bản mở rộng)
+
+- Đăng ký Email/Mật khẩu mở công khai. Firebase Auth được đặt `browserLocalPersistence`, nên trình duyệt giữ phiên đăng nhập qua lần mở trang sau (trừ khi người dùng đăng xuất, xóa dữ liệu trình duyệt hoặc phiên bị thu hồi).
+- Mỗi tài khoản có UID Firebase. Hồ sơ ở `/users/<uid>/profile`; thông tin thiết bị gần nhất chỉ gồm nền tảng, trình duyệt, ngôn ngữ và thời điểm đăng nhập. Không dùng IP để tự động xác thực.
+- Vai trò có `member`, `vip`, `admin`. Quyền thực tế được xác định từ `/vips/<uid>` và `/admins/<uid>`, không tin trường role do trình duyệt tự gửi.
+- Admin đầu tiên cần được bootstrap thủ công trong Firebase Realtime Database: tạo `/admins/<UID_CUA_BAN> = true`. Sau đó Admin đăng nhập và dùng mục “Cấp quyền thành viên” để cấp VIP/Admin cho UID khác. Callable Function `setAccountRole` kiểm tra quyền Admin ở server.
+- `recordLearningActivity` cập nhật chuỗi ngày học, tổng điểm, số câu đúng/đã làm và bảng xếp hạng `/leaderboard`. Điểm xếp hạng = tổng điểm + 10 × chuỗi ngày học. Client không được ghi trực tiếp bảng xếp hạng.
+- Mục Cộng đồng có bảng xếp hạng, hồ sơ và khung tạo/tham gia phòng đấu. Bản này đã lưu phòng và danh sách người tham gia trên RTDB; **bộ máy trận đấu trực tiếp, đồng bộ câu hỏi/đồng hồ và luồng nộp kết quả đối kháng vẫn là phần cần phát triển tiếp**, chưa nên dùng để tổ chức thi có tính cạnh tranh.
+
+### Cập nhật Firebase cho bản mở rộng
+
+1. Bật Authentication > Sign-in method > Email/Password.
+2. Dán Web App config vào `assets/js/config.js`.
+3. Import `database.rules.json` vào Realtime Database > Rules.
+4. Deploy Cloud Functions trong thư mục dự án bằng Firebase CLI: `firebase deploy --only functions` (cần Blaze/billing cho Cloud Functions; nhờ người lớn hỗ trợ phần thanh toán nếu cần).
+5. Tạo Admin đầu tiên bằng cách lấy UID trong Authentication > Users, rồi tạo `/admins/<UID> = true` trong Realtime Database.
+6. Deploy thư mục `ontap` lên GitHub Pages. GitHub Pages chỉ host giao diện; Firebase Auth, Database và Functions chạy riêng trên Firebase.
+
+**Lưu ý:** Chức năng đăng nhập ghi nhớ phiên và thông tin thiết bị chỉ hoạt động sau khi Firebase được cấu hình. Chạy demo không có Firebase sẽ không có bảng xếp hạng online hoặc phòng đấu online.

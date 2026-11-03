@@ -27,6 +27,8 @@ let questions = [];
 let exams = [];
 let currentUser = null;
 let isAdmin = false;
+let accountRole = "guest";
+let accountProfile = null;
 let authMode = "login";
 let activePractice = null;
 let activeExam = null;
@@ -148,7 +150,7 @@ function renderStats() {
   $("#demoHint").hidden = firebaseReady;
 }
 function switchView(name) {
-  const viewNames = ["home", "practice", "exams", "history", "admin"];
+  const viewNames = ["home", "practice", "exams", "history", "community", "admin"];
   if (!viewNames.includes(name)) name = "home";
   if (name === "admin" && !isAdmin) {
     toast("Bạn cần đăng nhập bằng tài khoản quản trị để sử dụng khu vực này.", "error");
@@ -157,12 +159,13 @@ function switchView(name) {
   }
   $$(".view").forEach(v => v.classList.toggle("active", v.id === `view-${name}`));
   $$(".nav-item[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view === name));
-  const titles = { home: "Tổng quan", practice: "Luyện tập", exams: "Thi thử", history: "Lịch sử học", admin: "Quản trị câu hỏi" };
+  const titles = { home: "Tổng quan", practice: "Luyện tập", exams: "Thi thử", history: "Lịch sử học", community: "Cộng đồng", admin: "Quản trị câu hỏi" };
   $("#pageTitle").textContent = titles[name];
   $("#sidebar").classList.remove("open");
   if (name === "history") renderHistory();
   if (name === "exams") renderExams();
   if (name === "admin") renderAdminQuestions();
+  if (name === "community") loadCommunity();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 function getHistory() { return readLocal(HISTORY_KEY, localHistory); }
@@ -189,7 +192,12 @@ async function saveHistory(entry) {
       const safe = { ...record };
       delete safe.id;
       await firebaseSdk.set(firebaseSdk.ref(database, `users/${currentUser.uid}/history/${record.id}`), safe);
-    } catch (error) { console.warn("Could not sync history", error); }
+      if (functionsService) {
+        const callable = firebaseSdk.httpsCallable(functionsService, "recordLearningActivity");
+        const activity = await callable({ scorePercent: Number(record.scorePercent || 0), correct: Number(record.correct || 0), total: Number(record.total || 0) });
+        accountProfile = { ...(accountProfile || {}), ...(activity.data || {}) };
+      }
+    } catch (error) { console.warn("Could not sync profile stats", error); }
   }
   renderStats();
   return record;
@@ -483,6 +491,60 @@ function downloadTemplate() {
   downloadFile("ontap-import-template.json", JSON.stringify(sample, null, 2), "application/json");
 }
 
+function deviceSummary() {
+  const ua = navigator.userAgent || "Unknown device";
+  const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "Trình duyệt khác";
+  const platform = /Android/i.test(ua) ? "Android" : /iPhone|iPad|iPod/i.test(ua) ? "iOS" : /Windows/i.test(ua) ? "Windows" : /Mac OS/i.test(ua) ? "macOS" : "Thiết bị khác";
+  return { browser, platform, language: navigator.language || "vi", updatedAt: Date.now() };
+}
+async function ensureUserProfile(user) {
+  if (!firebaseReady || !user) return null;
+  const profileRef = firebaseSdk.ref(database, `users/${user.uid}/profile`);
+  const snap = await firebaseSdk.get(profileRef);
+  const device = deviceSummary();
+  const base = { uid: user.uid, email: user.email || "", displayName: user.displayName || (user.email || "Học sinh").split("@")[0], role: "member", stats: { streak: 0, totalScore: 0, totalCorrect: 0, totalAnswered: 0, lastStudyDate: "" }, createdAt: Date.now() };
+  if (!snap.exists()) await firebaseSdk.set(profileRef, base);
+  await firebaseSdk.update(profileRef, { lastLogin: { timestamp: Date.now(), device } });
+  const fresh = await firebaseSdk.get(profileRef);
+  return fresh.val() || base;
+}
+async function loadCommunity() {
+  if (!firebaseReady) { $("#leaderboardList").innerHTML = '<div class="empty-list">Kết nối Firebase để xem bảng xếp hạng online.</div>'; return; }
+  try {
+    const [boardSnap, profileSnap] = await Promise.all([
+      firebaseSdk.get(firebaseSdk.query(firebaseSdk.ref(database, "leaderboard"), firebaseSdk.orderByChild("rankingScore"), firebaseSdk.limitToLast(50))),
+      currentUser ? firebaseSdk.get(firebaseSdk.ref(database, `users/${currentUser.uid}/profile`)) : Promise.resolve(null)
+    ]);
+    const rows = boardSnap.exists() ? Object.entries(boardSnap.val()).map(([uid, row]) => ({ uid, ...row })).sort((a,b) => (b.rankingScore||0)-(a.rankingScore||0)) : [];
+    $("#leaderboardList").innerHTML = rows.length ? rows.map((row,i) => `<div class="history-row"><div class="history-type">${i+1}</div><div class="history-copy"><strong>${escapeHtml(row.displayName || "Học sinh")}</strong><small>${Number(row.streak||0)} ngày liên tiếp · ${Number(row.totalScore||0)} điểm</small></div><span class="history-score">${Number(row.rankingScore||0)}</span></div>`).join("") : '<div class="empty-list">Chưa có thành viên trên bảng xếp hạng.</div>';
+    if (profileSnap?.exists()) {
+      const p = profileSnap.val(); const st = p.stats || {};
+      $("#profileStreak").textContent = st.streak || 0; $("#profileScore").textContent = st.totalScore || 0;
+      const rank = rows.findIndex(x => x.uid === currentUser.uid); $("#profileRank").textContent = rank >= 0 ? `#${rank+1}` : "—";
+      const last = p.lastLogin || {}; const d = last.device || {};
+      $("#profileDetails").innerHTML = `<div><b>Email:</b> ${escapeHtml(p.email || currentUser.email || "")}</div><div><b>UID:</b> <code>${escapeHtml(currentUser.uid)}</code></div><div><b>Quyền:</b> ${escapeHtml(accountRole)}</div><div><b>Đăng nhập gần nhất:</b> ${last.timestamp ? new Date(last.timestamp).toLocaleString("vi-VN") : "—"}</div><div><b>Thiết bị:</b> ${escapeHtml([d.platform,d.browser].filter(Boolean).join(" · ") || "Chưa có dữ liệu")}</div>`;
+    } else { $("#profileDetails").textContent = "Bạn đang dùng chế độ khách. Đăng nhập để xem UID và đồng bộ hồ sơ."; }
+  } catch (e) { console.warn(e); $("#leaderboardList").innerHTML = '<div class="empty-list">Không tải được bảng xếp hạng. Kiểm tra Firebase Rules.</div>'; }
+}
+async function createBattleRoom() {
+  if (!currentUser || !firebaseReady) { toast("Bạn cần đăng nhập để tạo phòng đấu.", "error"); openAuth(); return; }
+  const code = Math.random().toString(36).slice(2,8).toUpperCase(); const mode = $("#battleMode").value;
+  try {
+    await firebaseSdk.set(firebaseSdk.ref(database, `battles/${code}`), { code, mode, status: "waiting", hostUid: currentUser.uid, hostName: currentUser.email || "Thành viên", createdAt: Date.now(), participants: { [currentUser.uid]: { name: currentUser.email || "Thành viên", joinedAt: Date.now() } } });
+    $("#battleStatus").textContent = `Đã tạo phòng ${code}. Gửi mã này cho bạn bè để tham gia.`; $("#battleCode").value = code;
+  } catch (e) { $("#battleStatus").textContent = "Không tạo được phòng. Kiểm tra quyền Firebase Database."; }
+}
+async function joinBattleRoom() {
+  if (!currentUser || !firebaseReady) { toast("Bạn cần đăng nhập để tham gia phòng đấu.", "error"); openAuth(); return; }
+  const code = $("#battleCode").value.trim().toUpperCase(); if (!code) return;
+  try {
+    const roomRef = firebaseSdk.ref(database, `battles/${code}`); const snap = await firebaseSdk.get(roomRef);
+    if (!snap.exists()) { $("#battleStatus").textContent = "Không tìm thấy phòng này."; return; }
+    await firebaseSdk.update(firebaseSdk.ref(database, `battles/${code}/participants/${currentUser.uid}`), { name: currentUser.email || "Thành viên", joinedAt: Date.now() });
+    $("#battleStatus").textContent = snap.val().mode === "async" ? `Đã vào phòng ${code}. Hai người làm cùng đề rồi gửi kết quả để so sánh.` : `Đã vào phòng ${code}. Phòng trực tiếp đã được tạo; đồng bộ câu hỏi sẽ được mở khi triển khai bộ máy trận đấu.`;
+  } catch (e) { $("#battleStatus").textContent = "Không thể tham gia. Kiểm tra Firebase Rules."; }
+}
+
 function openAuth() {
   if (!firebaseReady) { toast("Hãy điền Firebase config trong assets/js/config.js trước khi đăng nhập.", "error"); return; }
   $("#authModal").hidden = false;
@@ -521,30 +583,27 @@ async function handleSignOut() {
   catch (error) { toast(error.message || "Không thể đăng xuất.", "error"); }
 }
 async function onUserChanged(user) {
-  currentUser = user;
-  isAdmin = !firebaseReady; // Local demo mode exposes the local-only admin tools.
+  currentUser = user; isAdmin = !firebaseReady; accountRole = !firebaseReady ? "demo-admin" : "guest"; accountProfile = null;
   if (user && firebaseReady) {
     try {
-      const snapshot = await firebaseSdk.get(firebaseSdk.ref(database, `admins/${user.uid}`));
-      isAdmin = snapshot.val() === true;
-      if (isAdmin) {
-        const keysSnapshot = await firebaseSdk.get(firebaseSdk.ref(database, "questionKeys"));
-        const keys = keysSnapshot.val() || {};
-        questions = questions.map(q => ({ ...q, ...(keys[q.id] || {}) }));
-      }
-    } catch (error) { console.warn("Admin check failed", error); }
+      accountProfile = await ensureUserProfile(user);
+      const [adminSnap, vipSnap] = await Promise.all([
+        firebaseSdk.get(firebaseSdk.ref(database, `admins/${user.uid}`)),
+        firebaseSdk.get(firebaseSdk.ref(database, `vips/${user.uid}`))
+      ]);
+      isAdmin = adminSnap.val() === true;
+      accountRole = isAdmin ? "admin" : vipSnap.val() === true ? "vip" : "member";
+      if (isAdmin) { const keysSnapshot = await firebaseSdk.get(firebaseSdk.ref(database, "questionKeys")); const keys = keysSnapshot.val() || {}; questions = questions.map(q => ({ ...q, ...(keys[q.id] || {}) })); }
+    } catch (error) { console.warn("Account profile load failed", error); }
   }
-  const name = user?.email || "Khách học tập";
-  $("#userName").textContent = name;
-  $("#userRole").textContent = !firebaseReady ? "Quản trị demo · lưu trên máy" : isAdmin ? "Quản trị viên" : user ? "Tài khoản học sinh" : "Chế độ khách";
-  $("#avatar").textContent = name.slice(0, 1).toUpperCase();
-  $("#topAuthButton").textContent = name.slice(0, 1).toUpperCase();
-  $("#authButton").textContent = user ? "↪" : "↗";
-  $("#authButton").title = user ? "Đăng xuất" : "Đăng nhập";
-  $("#adminNav").hidden = !isAdmin;
-  $("#adminWarning").hidden = !firebaseReady || isAdmin;
-  renderAdminQuestions();
-  if (firebaseReady && user) await refreshHistory();
+  const name = accountProfile?.displayName || user?.email || "Khách học tập";
+  const roleNames = { "demo-admin":"Quản trị demo · lưu trên máy", admin:"Quản trị viên", vip:"Thành viên VIP", member:"Thành viên", guest:"Chế độ khách" };
+  $("#userName").textContent = name; $("#userRole").textContent = roleNames[accountRole] || "Thành viên";
+  $("#avatar").textContent = name.slice(0, 1).toUpperCase(); $("#topAuthButton").textContent = name.slice(0, 1).toUpperCase();
+  $("#authButton").textContent = user ? "↪" : "↗"; $("#authButton").title = user ? "Đăng xuất" : "Đăng nhập";
+  $("#adminNav").hidden = !isAdmin; $("#adminWarning").hidden = !firebaseReady || isAdmin;
+  renderAdminQuestions(); if (firebaseReady && user) await refreshHistory();
+  if ($("#view-community")?.classList.contains("active")) await loadCommunity();
 }
 
 function wireEvents() {
@@ -558,6 +617,8 @@ function wireEvents() {
   $("#authSwitch").addEventListener("click", () => setAuthMode(authMode === "login" ? "signup" : "login"));
   $("#authForm").addEventListener("submit", handleAuth);
   $("#startPractice").addEventListener("click", startPractice);
+  $("#createBattle").addEventListener("click", createBattleRoom);
+  $("#joinBattle").addEventListener("click", joinBattleRoom);
   $("#practiceSubject").addEventListener("change", updateTopicSelects);
   $("#newExamSubject").addEventListener("change", updateTopicSelects);
   $("#examSubjectFilter").addEventListener("change", renderExams);
@@ -580,6 +641,12 @@ function wireEvents() {
     }
   });
   $("#createExamForm").addEventListener("submit", makeExam);
+  $("#roleForm")?.addEventListener("submit", async event => {
+    event.preventDefault(); if (!isAdmin || !firebaseReady) return;
+    const targetUid = $("#roleUid").value.trim(); const role = $("#roleValue").value; $("#roleStatus").textContent = "Đang cập nhật...";
+    try { const call = firebaseSdk.httpsCallable(functionsService, "setAccountRole"); await call({ uid: targetUid, role }); $("#roleStatus").textContent = `Đã cập nhật quyền ${role} cho UID ${targetUid}.`; }
+    catch (e) { $("#roleStatus").textContent = e.message || "Không thể cập nhật quyền."; }
+  });
   $("#importFile").addEventListener("change", async event => {
     const file = event.target.files?.[0];
     if (!file) return;

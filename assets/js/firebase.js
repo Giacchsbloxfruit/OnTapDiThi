@@ -22,6 +22,7 @@ if (configured) {
     sdk = { ...authSdk, ...dbSdk, ...functionsSdk };
     app = appSdk.initializeApp(firebaseConfig);
     auth = authSdk.getAuth(app);
+    await authSdk.setPersistence(auth, authSdk.browserLocalPersistence);
     db = dbSdk.getDatabase(app);
     functions = functionsSdk.getFunctions(app, functionsRegion);
   } catch (error) {
