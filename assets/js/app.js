@@ -21,6 +21,7 @@ const SUBJECTS = [
 const HISTORY_KEY = "ontap_history_v1";
 const QUESTIONS_KEY = "ontap_demo_questions_v1";
 const EXAMS_KEY = "ontap_demo_exams_v1";
+const DEVICE_MODE_KEY = "ontap_device_mode_v1";
 const letters = ["A", "B", "C", "D"];
 
 let questions = [];
@@ -163,7 +164,7 @@ function switchView(name) {
   $$(".nav-item[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view === name));
   const titles = { home: "Tổng quan", practice: "Luyện tập", exams: "Thi thử", history: "Lịch sử học", top: "TOP", community: "Cộng đồng", admin: "Quản trị câu hỏi" };
   $("#pageTitle").textContent = titles[name];
-  $("#sidebar").classList.remove("open");
+  closeSidebar();
   if (name === "history") renderHistory();
   if (name === "exams") renderExams();
   if (name === "admin") renderAdminQuestions();
@@ -618,12 +619,42 @@ async function joinBattleRoom() {
   } catch (e) { $("#battleStatus").textContent = "Không thể tham gia. Kiểm tra Firebase Rules."; }
 }
 
+function getSavedDeviceMode() {
+  const mode = localStorage.getItem(DEVICE_MODE_KEY);
+  return mode === "phone" || mode === "computer" ? mode : "";
+}
+function applyDeviceMode(mode) {
+  if (mode !== "phone" && mode !== "computer") return;
+  localStorage.setItem(DEVICE_MODE_KEY, mode);
+  document.body.dataset.deviceMode = mode;
+  $("#deviceModal").hidden = true;
+  closeSidebar();
+}
+function openDevicePicker() {
+  $("#deviceModal").hidden = false;
+  closeSidebar();
+}
+function closeSidebar() {
+  $("#sidebar").classList.remove("open");
+  $("#sidebarOverlay").hidden = true;
+  $("#menuButton").setAttribute("aria-expanded", "false");
+}
+function toggleSidebar() {
+  const opening = !$("#sidebar").classList.contains("open");
+  $("#sidebar").classList.toggle("open", opening);
+  $("#sidebarOverlay").hidden = !opening;
+  $("#menuButton").setAttribute("aria-expanded", String(opening));
+}
 function openAuth() {
-  if (!firebaseReady) { toast("Hãy điền Firebase config trong assets/js/config.js trước khi đăng nhập.", "error"); return; }
+  if (!firebaseReady) { toast("Đăng nhập cần được cấu hình Firebase trong assets/js/config.js.", "error"); return; }
   $("#authModal").hidden = false;
   $("#authEmail").focus();
 }
-function closeAuth() { $("#authModal").hidden = true; $("#authStatus").textContent = ""; }
+function closeAuth(showDevicePicker = true) {
+  $("#authModal").hidden = true;
+  $("#authStatus").textContent = "";
+  if (showDevicePicker && !currentUser && !getSavedDeviceMode()) openDevicePicker();
+}
 function setAuthMode(mode) {
   authMode = mode;
   $("#authTitle").textContent = mode === "login" ? "Chào mừng trở lại" : "Tạo tài khoản OnTap";
@@ -641,7 +672,7 @@ async function handleAuth(event) {
   try {
     if (authMode === "login") await firebaseSdk.signInWithEmailAndPassword(authService, email, password);
     else await firebaseSdk.createUserWithEmailAndPassword(authService, email, password);
-    closeAuth(); toast(authMode === "login" ? "Đăng nhập thành công." : "Tài khoản đã được tạo.");
+    closeAuth(false); toast(authMode === "login" ? "Đăng nhập thành công." : "Tài khoản đã được tạo.");
   } catch (error) {
     $("#authStatus").textContent = authErrorMessage(error.code);
   } finally { $("#authSubmit").disabled = false; }
@@ -700,6 +731,18 @@ async function onUserChanged(user) {
   $("#view-admin").hidden = !isAdmin;
   $("#adminWarning").hidden = true;
 
+  if (user) {
+    const savedMode = getSavedDeviceMode();
+    if (savedMode) applyDeviceMode(savedMode);
+    else openDevicePicker();
+  } else if (firebaseReady) {
+    openAuth();
+  } else if (getSavedDeviceMode()) {
+    applyDeviceMode(getSavedDeviceMode());
+  } else {
+    openDevicePicker();
+  }
+
   if (!isAdmin && $("#view-admin").classList.contains("active")) switchView("home");
   renderAdminQuestions();
   renderStats();
@@ -714,11 +757,23 @@ function wireEvents() {
     switchView(button.dataset.view);
   }));
   $$('[data-go]').forEach(button => button.addEventListener("click", () => switchView(button.dataset.go)));
-  $("#menuButton").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
+  $("#menuButton").addEventListener("click", toggleSidebar);
+  $("#sidebarOverlay").addEventListener("click", closeSidebar);
+  $("#changeDeviceMode").addEventListener("click", openDevicePicker);
+  $("[data-device-choice]").forEach(button => button.addEventListener("click", () => {
+    applyDeviceMode(button.dataset.deviceChoice);
+    toast(button.dataset.deviceChoice === "phone" ? "Đã chọn giao diện điện thoại." : "Đã chọn giao diện máy tính.");
+  }));
   $("#authButton").addEventListener("click", () => currentUser ? handleSignOut() : openAuth());
   $("#topAuthButton").addEventListener("click", () => currentUser ? handleSignOut() : openAuth());
-  $("#closeAuth").addEventListener("click", closeAuth);
-  $("#authModal").addEventListener("click", event => { if (event.target.id === "authModal") closeAuth(); });
+  $("#closeAuth").addEventListener("click", () => closeAuth(true));
+  $("#authModal").addEventListener("click", event => { if (event.target.id === "authModal") closeAuth(true); });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      closeSidebar();
+      if (!$("#authModal").hidden) closeAuth(true);
+    }
+  });
   $("#authSwitch").addEventListener("click", () => setAuthMode(authMode === "login" ? "signup" : "login"));
   $("#authForm").addEventListener("submit", handleAuth);
   $("#startPractice").addEventListener("click", startPractice);
