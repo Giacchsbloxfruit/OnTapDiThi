@@ -694,6 +694,8 @@ async function onUserChanged(user) {
 
   $("#adminNavLabel").hidden = !isAdmin;
   $("#adminNavContainer").hidden = !isAdmin;
+  $("#adminNavLabel").style.display = isAdmin ? "" : "none";
+  $("#adminNavContainer").style.display = isAdmin ? "" : "none";
   $("#adminNav").hidden = !isAdmin;
   $("#view-admin").hidden = !isAdmin;
   $("#adminWarning").hidden = true;
@@ -707,7 +709,17 @@ async function onUserChanged(user) {
 }
 
 function wireEvents() {
-  $$(".nav-item[data-view]").forEach(button => button.addEventListener("click", () => switchView(button.dataset.view)));
+  $(".nav-item[data-view]").forEach(button => button.addEventListener("click", event => {
+    event.preventDefault();
+    switchView(button.dataset.view);
+  }));
+  $("#sidebar").addEventListener("click", event => {
+    const button = event.target.closest(".nav-item[data-view]");
+    if (button && !button.hidden && button.dataset.view !== "admin") {
+      event.preventDefault();
+      switchView(button.dataset.view);
+    }
+  });
   $$('[data-go]').forEach(button => button.addEventListener("click", () => switchView(button.dataset.go)));
   $("#menuButton").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
   $("#authButton").addEventListener("click", () => currentUser ? handleSignOut() : openAuth());
