@@ -9,8 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/styles.css?v=4">
-  <script type="module" src="assets/js/app.js?v=4"></script>
+  <link rel="stylesheet" href="assets/css/styles.css?v=5">
+  <script type="module" src="assets/js/app.js?v=5"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -38,16 +38,18 @@
         <strong>Mỗi ngày tiến bộ hơn</strong>
         <p>Học một chút hôm nay, tự tin hơn ngày mai.</p>
       </div>
+      <button class="mode-switch" id="changeDeviceMode" type="button"><span aria-hidden="true">▣</span><span>Đổi giao diện thiết bị</span><span class="mode-switch-arrow" aria-hidden="true">↗</span></button>
       <div class="profile-mini">
         <div class="avatar" id="avatar">G</div>
         <div class="profile-copy"><strong id="userName">Khách học tập</strong><small id="userRole">Chế độ khách</small></div>
         <button class="icon-button" id="authButton" title="Đăng nhập">↗</button>
       </div>
     </aside>
+    <button class="sidebar-overlay" id="sidebarOverlay" type="button" aria-label="Đóng menu" hidden></button>
 
     <main class="main-area">
       <header class="topbar">
-        <button class="icon-button mobile-menu" id="menuButton" aria-label="Mở menu">☰</button>
+        <button class="icon-button mobile-menu" id="menuButton" aria-label="Mở menu" aria-expanded="false">☰</button>
         <div class="breadcrumb"><span>OnTap</span><b>/</b><strong id="pageTitle">Tổng quan</strong></div>
         <div class="topbar-right">
           <span class="connection-pill" id="connectionStatus"><i></i> Đang ở chế độ demo</span>
@@ -149,6 +151,28 @@
   </div>
 
   <div class="modal-backdrop" id="authModal" hidden><div class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle"><button class="modal-close" id="closeAuth" aria-label="Đóng">×</button><div class="modal-mark">O</div><span class="eyebrow muted">TÀI KHOẢN ONTAP</span><h2 id="authTitle">Chào mừng trở lại</h2><p class="panel-description">Đăng nhập để đồng bộ lịch sử và sử dụng quyền quản trị (nếu được cấp).</p><form id="authForm"><label class="field-label" for="authEmail">Email</label><input class="field" type="email" id="authEmail" required autocomplete="email"><label class="field-label" for="authPassword">Mật khẩu</label><input class="field" type="password" id="authPassword" required minlength="6" autocomplete="current-password"><button class="btn btn-primary full-width" type="submit" id="authSubmit">Đăng nhập</button></form><p class="auth-switch"><span id="authSwitchText">Chưa có tài khoản?</span> <button class="text-button" id="authSwitch">Tạo tài khoản</button></p><div class="inline-status" id="authStatus"></div></div></div>
+  <div class="modal-backdrop device-modal-backdrop" id="deviceModal" hidden>
+    <section class="modal device-modal" role="dialog" aria-modal="true" aria-labelledby="deviceTitle">
+      <div class="device-modal-mark">O</div>
+      <span class="eyebrow muted">CÁ NHÂN HÓA TRẢI NGHIỆM</span>
+      <h2 id="deviceTitle">Bạn muốn sử dụng OnTap trên thiết bị nào?</h2>
+      <p class="panel-description">Chọn bố cục phù hợp. OnTap sẽ ghi nhớ lựa chọn trên thiết bị này.</p>
+      <div class="device-options">
+        <button class="device-choice" type="button" data-device-choice="computer">
+          <span class="device-preview device-preview-computer" aria-hidden="true"><i></i><b></b><em></em></span>
+          <strong>Máy tính</strong>
+          <small>Thanh điều hướng cố định và không gian hiển thị rộng.</small>
+          <span class="device-choice-action">Chọn giao diện máy tính →</span>
+        </button>
+        <button class="device-choice" type="button" data-device-choice="phone">
+          <span class="device-preview device-preview-phone" aria-hidden="true"><i></i><b></b><em></em></span>
+          <strong>Điện thoại</strong>
+          <small>Giao diện gọn, menu ba gạch trượt từ cạnh trái.</small>
+          <span class="device-choice-action">Chọn giao diện điện thoại →</span>
+        </button>
+      </div>
+    </section>
+  </div>
   <div class="toast-region" id="toastRegion" aria-live="polite"></div>
 </body>
 </html>
