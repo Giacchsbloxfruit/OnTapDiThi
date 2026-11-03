@@ -25,11 +25,12 @@
         <button class="nav-item" data-view="practice"><span class="nav-icon">✎</span><span>Luyện tập</span></button>
         <button class="nav-item" data-view="exams"><span class="nav-icon">▤</span><span>Thi thử</span></button>
         <button class="nav-item" data-view="history"><span class="nav-icon">◷</span><span>Lịch sử học</span></button>
+        <button class="nav-item" data-view="top"><span class="nav-icon">★</span><span>TOP</span></button>
         <button class="nav-item" data-view="community"><span class="nav-icon">♜</span><span>Cộng đồng</span></button>
       </nav>
-      <div class="side-section-label admin-label">QUẢN LÝ</div>
-      <nav class="main-nav">
-        <button class="nav-item" data-view="admin" id="adminNav" hidden><span class="nav-icon">▦</span><span>Quản trị câu hỏi</span></button>
+      <div class="side-section-label admin-label" id="adminNavLabel" hidden>QUẢN LÝ</div>
+      <nav class="main-nav" id="adminNavContainer" hidden>
+        <button class="nav-item" data-view="admin" id="adminNav"><span class="nav-icon">▦</span><span>Quản trị câu hỏi</span></button>
       </nav>
       <div class="sidebar-spacer"></div>
       <div class="sidebar-note">
@@ -72,7 +73,7 @@
           <div class="section-heading section-heading-spaced"><div><span class="eyebrow muted">THEO DÕI HỌC TẬP</span><h2>Tiến độ của bạn</h2></div><button class="text-button" data-go="history">Xem lịch sử →</button></div>
           <div class="stats-grid">
             <article class="stat-card"><div class="stat-top"><span>Câu đã làm</span><span class="stat-icon blue">✎</span></div><strong id="statAnswered">0</strong><small>Tổng lượt trả lời</small></article>
-            <article class="stat-card"><div class="stat-top"><span>Tỉ lệ chính xác</span><span class="stat-icon green">✓</span></div><strong id="statAccuracy">—</strong><small>Dựa trên lịch sử làm bài</small></article>
+            <article class="stat-card"><div class="stat-top"><span>Chuỗi hiện tại</span><span class="stat-icon green">🔥</span></div><strong id="statStreak">0 ngày</strong><small>Số ngày học liên tiếp</small></article>
             <article class="stat-card"><div class="stat-top"><span>Bài thi đã nộp</span><span class="stat-icon violet">▤</span></div><strong id="statExams">0</strong><small>Đề thi hoàn thành</small></article>
           </div>
           <div class="demo-hint" id="demoHint"><span>ⓘ</span><div><strong>Đang xem bản demo</strong><p>Dữ liệu hiện được lưu trên trình duyệt này. Kết nối Firebase để đồng bộ câu hỏi và tài khoản trên nhiều thiết bị.</p></div><button class="text-button" id="setupHintButton">Cách kết nối</button></div>
@@ -108,17 +109,29 @@
           <div class="panel history-panel"><div class="panel-title"><div><span class="eyebrow muted">HOẠT ĐỘNG GẦN ĐÂY</span><h2>Các lần làm bài</h2></div><button class="btn btn-secondary btn-small" id="clearLocalHistory">Xóa lịch sử trên thiết bị</button></div><div id="historyList"></div></div>
         </section>
 
+        <section class="view" id="view-top">
+          <div class="page-intro"><span class="eyebrow muted">ONTAP TOP</span><h1>Bảng xếp hạng <span class="gradient-text">thành tích.</span></h1><p>Hai bảng xếp hạng riêng: tổng điểm tích lũy và số ngày học liên tiếp. Thành tích được đồng bộ từ tài khoản Firebase.</p></div>
+          <div class="top-tabs" role="tablist" aria-label="Chọn bảng xếp hạng">
+            <button class="top-tab active" type="button" data-top-mode="score" role="tab" aria-selected="true">★ TOP điểm</button>
+            <button class="top-tab" type="button" data-top-mode="streak" role="tab" aria-selected="false">🔥 TOP chuỗi</button>
+          </div>
+          <div class="panel top-panel">
+            <div class="panel-title"><div><span class="eyebrow muted">VINH DANH NỖ LỰC</span><h2 id="topHeading">TOP điểm tích lũy</h2></div><span class="count-badge">TOP 50</span></div>
+            <p class="panel-description" id="topDescription">Xếp hạng theo tổng điểm tích lũy từ các hoạt động học tập.</p>
+            <div id="topList" class="top-list"><div class="empty-list">Đang tải bảng xếp hạng...</div></div>
+          </div>
+        </section>
+
         <section class="view" id="view-community">
-          <div class="page-intro"><span class="eyebrow muted">ONTAP COMMUNITY</span><h1>Cộng đồng <span class="gradient-text">học tập.</span></h1><p>Hồ sơ, bảng xếp hạng và thử thách cùng bạn bè.</p></div>
+          <div class="page-intro"><span class="eyebrow muted">ONTAP COMMUNITY</span><h1>Cộng đồng <span class="gradient-text">học tập.</span></h1><p>Hồ sơ cá nhân và thử thách cùng bạn bè.</p></div>
           <div class="stats-grid"><article class="stat-card"><div class="stat-top"><span>Chuỗi ngày học</span><span class="stat-icon green">✦</span></div><strong id="profileStreak">0</strong></article><article class="stat-card"><div class="stat-top"><span>Tổng điểm</span><span class="stat-icon violet">★</span></div><strong id="profileScore">0</strong></article><article class="stat-card"><div class="stat-top"><span>Thứ hạng</span><span class="stat-icon blue">♜</span></div><strong id="profileRank">—</strong></article></div>
-          <div class="admin-columns">
-            <div class="panel"><div class="panel-title"><div><span class="eyebrow muted">TOP ONTAP</span><h2>Bảng xếp hạng</h2></div><span class="count-badge">TOP</span></div><p class="panel-description">Xếp hạng kết hợp tổng điểm tích lũy và chuỗi ngày học.</p><div id="leaderboardList" class="question-list"><div class="empty-list">Đăng nhập và hoàn thành bài học để xuất hiện trên bảng xếp hạng.</div></div></div>
+          <div class="admin-columns community-columns">
             <div class="panel"><div class="panel-title"><div><span class="eyebrow muted">THỬ THÁCH</span><h2>Đấu cùng bạn bè</h2></div><span class="panel-icon">⚔</span></div><p class="panel-description">Tạo phòng thi để bạn bè tham gia bằng mã phòng. Có thể làm cùng đề rồi so sánh kết quả; chế độ trực tiếp sẽ dùng phòng đồng bộ.</p><label class="field-label" for="battleMode">Chế độ</label><select class="field" id="battleMode"><option value="live">Đấu trực tiếp</option><option value="async">Thi cùng đề, so sánh kết quả</option></select><button class="btn btn-primary full-width" id="createBattle">Tạo phòng đấu</button><label class="field-label" for="battleCode">Mã phòng</label><input class="field" id="battleCode" maxlength="12" placeholder="Nhập mã phòng bạn bè"><button class="btn btn-secondary full-width" id="joinBattle">Tham gia phòng</button><div class="inline-status" id="battleStatus"></div></div>
           </div>
           <div class="panel" style="margin-top:18px"><div class="panel-title"><div><span class="eyebrow muted">HỒ SƠ CỦA BẠN</span><h2>Thông tin tài khoản</h2></div></div><div id="profileDetails" class="panel-description">Đăng nhập để xem UID và thông tin phiên.</div></div>
         </section>
 
-        <section class="view" id="view-admin">
+        <section class="view" id="view-admin" hidden>
           <div class="page-intro"><span class="eyebrow muted">KHU VỰC QUẢN TRỊ</span><h1>Quản lý <span class="gradient-text">nội dung.</span></h1><p>Thêm, sửa, xóa câu hỏi và tạo đề thi từ kho dữ liệu.</p></div>
           <div class="admin-warning" id="adminWarning" hidden>⚠ Bạn cần đăng nhập bằng tài khoản đã được cấp quyền quản trị trong Firebase để ghi dữ liệu.</div>
           <div class="admin-tabs"><button class="admin-tab active" data-admin-tab="questions">Kho câu hỏi</button><button class="admin-tab" data-admin-tab="createExam">Tạo đề thi</button><button class="admin-tab" data-admin-tab="import">Nhập / Xuất</button></div>
