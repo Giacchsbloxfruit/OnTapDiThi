@@ -709,7 +709,7 @@ async function onUserChanged(user) {
 }
 
 function wireEvents() {
-  $(".nav-item[data-view]").forEach(button => button.addEventListener("click", event => {
+  $$(".nav-item[data-view]").forEach(button => button.addEventListener("click", event => {
     event.preventDefault();
     switchView(button.dataset.view);
   }));
