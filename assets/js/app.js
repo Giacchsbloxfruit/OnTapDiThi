@@ -760,7 +760,7 @@ function wireEvents() {
   $("#menuButton").addEventListener("click", toggleSidebar);
   $("#sidebarOverlay").addEventListener("click", closeSidebar);
   $("#changeDeviceMode").addEventListener("click", openDevicePicker);
-  $("[data-device-choice]").forEach(button => button.addEventListener("click", () => {
+  $$("[data-device-choice]").forEach(button => button.addEventListener("click", () => {
     applyDeviceMode(button.dataset.deviceChoice);
     toast(button.dataset.deviceChoice === "phone" ? "Đã chọn giao diện điện thoại." : "Đã chọn giao diện máy tính.");
   }));
