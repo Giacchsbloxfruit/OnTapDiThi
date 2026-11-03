@@ -1,0 +1,10 @@
+{
+  "name": "ontap-learning-platform",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "OnTap education and exam practice website for GitHub Pages and Firebase",
+  "scripts": {
+    "serve": "python -m http.server 5500"
+  }
+}

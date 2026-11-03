@@ -1,0 +1,20 @@
+{
+  "questions": [
+    {
+      "subject": "cong-nghe",
+      "subjectName": "Công nghệ",
+      "grade": 11,
+      "topic": "Vật liệu cơ khí",
+      "type": "mcq",
+      "question": "Gang là hợp kim của những nguyên tố nào?",
+      "options": {
+        "A": "Sắt và carbon",
+        "B": "Đồng và kẽm",
+        "C": "Nhôm và đồng",
+        "D": "Sắt và nhôm"
+      },
+      "correctAnswer": "A",
+      "explanation": "Gang là hợp kim của sắt và carbon."
+    }
+  ]
+}

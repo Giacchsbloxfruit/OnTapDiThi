@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="description" content="OnTap — nền tảng luyện tập và thi thử dành cho học sinh THPT.">
+  <title>OnTap — Học tập thông minh</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <script type="module" src="assets/js/app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#home" aria-label="OnTap trang chủ">
+        <span class="brand-mark">O</span>
+        <span><strong>OnTap</strong><small>LEARN • PRACTICE • GROW</small></span>
+      </a>
+      <div class="side-section-label">KHÔNG GIAN HỌC TẬP</div>
+      <nav class="main-nav" aria-label="Điều hướng chính">
+        <button class="nav-item active" data-view="home"><span class="nav-icon">⌂</span><span>Tổng quan</span></button>
+        <button class="nav-item" data-view="practice"><span class="nav-icon">✎</span><span>Luyện tập</span></button>
+        <button class="nav-item" data-view="exams"><span class="nav-icon">▤</span><span>Thi thử</span></button>
+        <button class="nav-item" data-view="history"><span class="nav-icon">◷</span><span>Lịch sử học</span></button>
+      </nav>
+      <div class="side-section-label admin-label">QUẢN LÝ</div>
+      <nav class="main-nav">
+        <button class="nav-item" data-view="admin" id="adminNav" hidden><span class="nav-icon">▦</span><span>Quản trị câu hỏi</span></button>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-note">
+        <div class="note-icon">✦</div>
+        <strong>Mỗi ngày tiến bộ hơn</strong>
+        <p>Học một chút hôm nay, tự tin hơn ngày mai.</p>
+      </div>
+      <div class="profile-mini">
+        <div class="avatar" id="avatar">G</div>
+        <div class="profile-copy"><strong id="userName">Khách học tập</strong><small id="userRole">Chế độ khách</small></div>
+        <button class="icon-button" id="authButton" title="Đăng nhập">↗</button>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <button class="icon-button mobile-menu" id="menuButton" aria-label="Mở menu">☰</button>
+        <div class="breadcrumb"><span>OnTap</span><b>/</b><strong id="pageTitle">Tổng quan</strong></div>
+        <div class="topbar-right">
+          <span class="connection-pill" id="connectionStatus"><i></i> Đang ở chế độ demo</span>
+          <button class="top-avatar" id="topAuthButton" title="Tài khoản">G</button>
+        </div>
+      </header>
+
+      <div class="content-wrap">
+        <section class="view active" id="view-home">
+          <div class="hero-card">
+            <div class="hero-content">
+              <span class="eyebrow"><span class="eyebrow-dot"></span> KHÔNG GIAN HỌC TẬP CỦA BẠN</span>
+              <h1>Chào mừng đến với <span>OnTap.</span></h1>
+              <p>Chọn một môn học, luyện từng câu hỏi hoặc thử sức với đề thi có giới hạn thời gian.</p>
+              <div class="hero-actions"><button class="btn btn-primary" data-go="practice">Bắt đầu luyện tập <span>→</span></button><button class="btn btn-ghost" data-go="exams">Khám phá đề thi</button></div>
+            </div>
+            <div class="hero-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="hero-glow"></div><div class="floating-card card-book">📘 <span>Kiến thức</span></div><div class="floating-card card-star">✦ <span>Tiến bộ</span></div><div class="hero-emblem"><span>O</span><small>LEARN</small></div></div>
+          </div>
+
+          <div class="section-heading"><div><span class="eyebrow muted">BẮT ĐẦU HỌC</span><h2>Không gian của bạn</h2></div><span class="subtle-text">Lớp 11 · Các môn học</span></div>
+          <div class="subject-grid" id="subjectCards"></div>
+
+          <div class="section-heading section-heading-spaced"><div><span class="eyebrow muted">THEO DÕI HỌC TẬP</span><h2>Tiến độ của bạn</h2></div><button class="text-button" data-go="history">Xem lịch sử →</button></div>
+          <div class="stats-grid">
+            <article class="stat-card"><div class="stat-top"><span>Câu đã làm</span><span class="stat-icon blue">✎</span></div><strong id="statAnswered">0</strong><small>Tổng lượt trả lời</small></article>
+            <article class="stat-card"><div class="stat-top"><span>Tỉ lệ chính xác</span><span class="stat-icon green">✓</span></div><strong id="statAccuracy">—</strong><small>Dựa trên lịch sử làm bài</small></article>
+            <article class="stat-card"><div class="stat-top"><span>Bài thi đã nộp</span><span class="stat-icon violet">▤</span></div><strong id="statExams">0</strong><small>Đề thi hoàn thành</small></article>
+          </div>
+          <div class="demo-hint" id="demoHint"><span>ⓘ</span><div><strong>Đang xem bản demo</strong><p>Dữ liệu hiện được lưu trên trình duyệt này. Kết nối Firebase để đồng bộ câu hỏi và tài khoản trên nhiều thiết bị.</p></div><button class="text-button" id="setupHintButton">Cách kết nối</button></div>
+        </section>
+
+        <section class="view" id="view-practice">
+          <div class="page-intro"><span class="eyebrow muted">LUYỆN TẬP CÁ NHÂN</span><h1>Luyện tập <span class="gradient-text">từng bước.</span></h1><p>Chọn môn học và chủ đề. OnTap sẽ xáo trộn câu hỏi để bạn luyện tập liên tục.</p></div>
+          <div class="practice-layout">
+            <div class="panel practice-settings">
+              <div class="panel-title"><div><span class="eyebrow muted">THIẾT LẬP</span><h2>Bạn muốn ôn gì?</h2></div><span class="panel-icon">⚙</span></div>
+              <label class="field-label" for="practiceSubject">Môn học</label><select class="field" id="practiceSubject"><option value="all">Tất cả môn học</option></select>
+              <label class="field-label" for="practiceTopic">Chủ đề</label><select class="field" id="practiceTopic"><option value="all">Tất cả chủ đề</option></select>
+              <label class="field-label" for="practiceCount">Số câu mỗi lượt</label><select class="field" id="practiceCount"><option value="10">10 câu</option><option value="20">20 câu</option><option value="30">30 câu</option><option value="all">Tất cả câu hỏi</option></select>
+              <button class="btn btn-primary full-width" id="startPractice">Bắt đầu luyện tập <span>→</span></button>
+              <div class="small-tip">✦ <span>Sau mỗi câu, bạn sẽ thấy đáp án và lời giải thích.</span></div>
+            </div>
+            <div class="panel practice-stage" id="practiceStage">
+              <div class="empty-state"><div class="empty-illustration">✎</div><h3>Sẵn sàng bắt đầu?</h3><p>Chọn môn học và chủ đề ở bên trái, sau đó nhấn “Bắt đầu luyện tập”.</p></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-exams">
+          <div class="page-intro"><span class="eyebrow muted">KIỂM TRA KIẾN THỨC</span><h1>Phòng <span class="gradient-text">thi thử.</span></h1><p>Chọn một đề có sẵn hoặc tạo đề theo chủ đề. Hãy kiểm tra kỹ trước khi nộp bài.</p></div>
+          <div class="filter-row"><select class="field compact" id="examSubjectFilter"><option value="all">Tất cả môn học</option></select><select class="field compact" id="examGradeFilter"><option value="11">Lớp 11</option></select><span class="spacer"></span><span class="subtle-text" id="examCount">0 đề thi</span></div>
+          <div class="exam-grid" id="examCards"></div>
+          <div class="panel exam-workspace" id="examWorkspace" hidden></div>
+        </section>
+
+        <section class="view" id="view-history">
+          <div class="page-intro"><span class="eyebrow muted">NHÌN LẠI HÀNH TRÌNH</span><h1>Lịch sử <span class="gradient-text">học tập.</span></h1><p>Theo dõi các lượt luyện tập và bài thi bạn đã hoàn thành.</p></div>
+          <div class="history-summary stats-grid"><article class="stat-card"><div class="stat-top"><span>Tổng lượt học</span><span class="stat-icon blue">◷</span></div><strong id="historyTotal">0</strong></article><article class="stat-card"><div class="stat-top"><span>Điểm trung bình</span><span class="stat-icon green">✦</span></div><strong id="historyAverage">—</strong></article><article class="stat-card"><div class="stat-top"><span>Điểm cao nhất</span><span class="stat-icon violet">↑</span></div><strong id="historyBest">—</strong></article></div>
+          <div class="panel history-panel"><div class="panel-title"><div><span class="eyebrow muted">HOẠT ĐỘNG GẦN ĐÂY</span><h2>Các lần làm bài</h2></div><button class="btn btn-secondary btn-small" id="clearLocalHistory">Xóa lịch sử trên thiết bị</button></div><div id="historyList"></div></div>
+        </section>
+
+        <section class="view" id="view-admin">
+          <div class="page-intro"><span class="eyebrow muted">KHU VỰC QUẢN TRỊ</span><h1>Quản lý <span class="gradient-text">nội dung.</span></h1><p>Thêm, sửa, xóa câu hỏi và tạo đề thi từ kho dữ liệu.</p></div>
+          <div class="admin-warning" id="adminWarning" hidden>⚠ Bạn cần đăng nhập bằng tài khoản đã được cấp quyền quản trị trong Firebase để ghi dữ liệu.</div>
+          <div class="admin-tabs"><button class="admin-tab active" data-admin-tab="questions">Kho câu hỏi</button><button class="admin-tab" data-admin-tab="createExam">Tạo đề thi</button><button class="admin-tab" data-admin-tab="import">Nhập / Xuất</button></div>
+          <div class="admin-pane active" id="admin-questions">
+            <div class="admin-columns"><form class="panel editor-panel" id="questionForm"><div class="panel-title"><div><span class="eyebrow muted">BIÊN TẬP NỘI DUNG</span><h2 id="questionFormTitle">Thêm câu hỏi mới</h2></div><span class="panel-icon">＋</span></div><input type="hidden" id="editQuestionId"><label class="field-label" for="qSubject">Môn học</label><select id="qSubject" class="field"></select><label class="field-label" for="qTopic">Chủ đề</label><input id="qTopic" class="field" required maxlength="80" placeholder="Ví dụ: Vật liệu cơ khí"><label class="field-label" for="qText">Nội dung câu hỏi</label><textarea id="qText" class="field textarea" required rows="3" placeholder="Nhập nội dung câu hỏi..."></textarea><div class="option-editor"><div><label class="field-label" for="optA">Đáp án A</label><input id="optA" class="field" required></div><div><label class="field-label" for="optB">Đáp án B</label><input id="optB" class="field" required></div><div><label class="field-label" for="optC">Đáp án C</label><input id="optC" class="field" placeholder="Đáp án C (không bắt buộc)"></div><div><label class="field-label" for="optD">Đáp án D</label><input id="optD" class="field" placeholder="Đáp án D (không bắt buộc)"></div></div><label class="field-label" for="qCorrect">Đáp án đúng</label><select id="qCorrect" class="field"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select><label class="field-label" for="qExplanation">Giải thích</label><textarea id="qExplanation" class="field textarea" rows="2" placeholder="Giải thích vì sao đáp án đúng..."></textarea><div class="form-actions"><button class="btn btn-primary" type="submit">Lưu câu hỏi</button><button class="btn btn-secondary" type="button" id="resetQuestionForm">Làm mới</button></div></form>
+              <div class="panel question-list-panel"><div class="panel-title"><div><span class="eyebrow muted">NGÂN HÀNG</span><h2>Danh sách câu hỏi</h2></div><span class="count-badge" id="questionTotal">0</span></div><input class="field search-field" id="questionSearch" placeholder="Tìm nội dung câu hỏi..."><div class="question-list" id="adminQuestionList"></div></div></div>
+          </div>
+          <div class="admin-pane" id="admin-createExam"><form class="panel exam-creator" id="createExamForm"><div class="panel-title"><div><span class="eyebrow muted">THIẾT KẾ BÀI KIỂM TRA</span><h2>Tạo đề thi mới</h2></div><span class="panel-icon">▤</span></div><div class="form-grid"><div><label class="field-label" for="newExamTitle">Tên đề thi</label><input class="field" id="newExamTitle" required placeholder="Ví dụ: Kiểm tra chương 1"></div><div><label class="field-label" for="newExamSubject">Môn học</label><select class="field" id="newExamSubject"></select></div><div><label class="field-label" for="newExamMinutes">Thời gian (phút)</label><input class="field" type="number" id="newExamMinutes" min="5" max="180" value="45" required></div><div><label class="field-label" for="newExamCount">Số câu hỏi</label><input class="field" type="number" id="newExamCount" min="1" max="100" value="20" required></div></div><label class="field-label" for="newExamTopic">Chủ đề</label><select class="field" id="newExamTopic"><option value="all">Tất cả chủ đề</option></select><p class="small-tip">Đề được tạo bằng cách chọn ngẫu nhiên các câu trong kho. Đáp án thi được lưu riêng, không gửi xuống trình duyệt trước khi nộp.</p><button class="btn btn-primary" type="submit">Tạo đề thi</button></form></div>
+          <div class="admin-pane" id="admin-import"><div class="admin-columns import-columns"><div class="panel"><div class="panel-title"><div><span class="eyebrow muted">NẠP DỮ LIỆU</span><h2>Nhập câu hỏi từ JSON</h2></div><span class="panel-icon">⇧</span></div><p class="panel-description">Chọn file JSON theo mẫu của OnTap. Có thể nhập một mảng câu hỏi hoặc object có thuộc tính <code>questions</code>.</p><label class="upload-box" for="importFile"><span>＋</span><strong>Chọn file JSON</strong><small>Chỉ hỗ trợ .json · Mỗi câu cần có question, options, correctAnswer</small><input type="file" id="importFile" accept=".json,application/json"></label><div class="form-actions"><button class="btn btn-primary" id="runImport" disabled>Nhập câu hỏi</button><button class="btn btn-secondary" id="downloadTemplate">Tải file mẫu</button></div><div class="inline-status" id="importStatus"></div></div><div class="panel"><div class="panel-title"><div><span class="eyebrow muted">SAO LƯU DỮ LIỆU</span><h2>Xuất kho câu hỏi</h2></div><span class="panel-icon">⇩</span></div><p class="panel-description">Tải toàn bộ câu hỏi đang có về thiết bị để sao lưu hoặc chỉnh sửa ngoại tuyến.</p><div class="export-preview"><div class="file-chip">{ } <span>ontap-question-bank.json</span></div><strong id="exportQuestionCount">0 câu hỏi</strong></div><button class="btn btn-secondary full-width" id="exportQuestions">Xuất kho câu hỏi (.json)</button></div></div></div>
+        </section>
+      </div>
+      <footer class="footer"><span>© <span id="year"></span> OnTap</span><span>Học chắc từng bước · Tiến bộ mỗi ngày</span></footer>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="authModal" hidden><div class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle"><button class="modal-close" id="closeAuth" aria-label="Đóng">×</button><div class="modal-mark">O</div><span class="eyebrow muted">TÀI KHOẢN ONTAP</span><h2 id="authTitle">Chào mừng trở lại</h2><p class="panel-description">Đăng nhập để đồng bộ lịch sử và sử dụng quyền quản trị (nếu được cấp).</p><form id="authForm"><label class="field-label" for="authEmail">Email</label><input class="field" type="email" id="authEmail" required autocomplete="email"><label class="field-label" for="authPassword">Mật khẩu</label><input class="field" type="password" id="authPassword" required minlength="6" autocomplete="current-password"><button class="btn btn-primary full-width" type="submit" id="authSubmit">Đăng nhập</button></form><p class="auth-switch"><span id="authSwitchText">Chưa có tài khoản?</span> <button class="text-button" id="authSwitch">Tạo tài khoản</button></p><div class="inline-status" id="authStatus"></div></div></div>
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+</body>
+</html>
