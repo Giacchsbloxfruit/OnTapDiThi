@@ -395,9 +395,64 @@ function renderAdminQuestions() {
   }
   $("#questionTotal").textContent = questions.length;
   $("#exportQuestionCount").textContent = `${questions.length} câu hỏi`;
+  const gdqpCount = questions.filter(q => q.subject === "gdqp-an").length;
+  const gdqpDeleteButton = $("#deleteGdqpQuestions");
+  if (gdqpDeleteButton) {
+    gdqpDeleteButton.disabled = gdqpCount === 0;
+    gdqpDeleteButton.textContent = gdqpCount ? `Xóa toàn bộ GDQP-AN (${gdqpCount})` : "Không có câu hỏi GDQP-AN";
+  }
   const keyword = ($("#questionSearch").value || "").trim().toLocaleLowerCase("vi");
   const filtered = questions.filter(q => `${q.question} ${q.topic}`.toLocaleLowerCase("vi").includes(keyword));
   $("#adminQuestionList").innerHTML = filtered.length ? filtered.map(q => `<div class="question-list-item"><div><strong>${escapeHtml(q.question)}</strong><small>${escapeHtml(q.topic || "Chưa phân chủ đề")} · ${escapeHtml(q.correctAnswer || "?")} · ${escapeHtml(q.id)}</small></div><div class="mini-actions"><button data-edit-question="${escapeHtml(q.id)}">Sửa</button><button class="delete" data-delete-question="${escapeHtml(q.id)}">×</button></div></div>`).join("") : `<div class="empty-list">Không tìm thấy câu hỏi.</div>`;
+}
+async function deleteAllGdqpQuestions() {
+  if (!firebaseReady || !currentUser || !isAdmin) {
+    toast("Chỉ tài khoản Admin đã đăng nhập mới được xóa dữ liệu Firebase.", "error");
+    return;
+  }
+  const targets = questions.filter(q => q.subject === "gdqp-an");
+  if (!targets.length) {
+    toast("Kho hiện không có câu hỏi GDQP-AN để xóa.", "error");
+    renderAdminQuestions();
+    return;
+  }
+  const approved = confirm(
+    `CẢNH BÁO: Bạn sắp xóa vĩnh viễn ${targets.length} câu hỏi GDQP-AN khỏi Firebase.\n\nThao tác này xóa cả nội dung trong questionsPublic và đáp án trong questionKeys, không thể hoàn tác.\n\nBạn nên xuất kho sao lưu trước. Tiếp tục?`
+  );
+  if (!approved) return;
+  const phrase = prompt('Để xác nhận lần cuối, hãy nhập chính xác: XOA GDQP-AN');
+  if (phrase !== "XOA GDQP-AN") {
+    toast("Đã hủy thao tác xóa. Không có câu hỏi nào bị xóa.");
+    return;
+  }
+
+  const button = $("#deleteGdqpQuestions");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Đang xóa dữ liệu...";
+  }
+  let deleted = 0;
+  const failures = [];
+  for (const question of targets) {
+    try {
+      await deleteQuestionRecord(question.id);
+      deleted++;
+    } catch (error) {
+      failures.push({ id: question.id, message: error.message || "Lỗi không xác định" });
+    }
+  }
+
+  updateSubjectSelects();
+  renderSubjectCards();
+  renderAdminQuestions();
+  renderExams();
+
+  if (failures.length) {
+    console.error("GDQP-AN bulk delete failures:", failures);
+    toast(`Đã xóa ${deleted}/${targets.length} câu. Còn ${failures.length} câu chưa xóa được; hãy thử lại sau.`, "error");
+  } else {
+    toast(`Đã xóa toàn bộ ${deleted} câu hỏi GDQP-AN khỏi Firebase.`);
+  }
 }
 function resetQuestionForm() {
   $("#questionForm").reset();
@@ -801,6 +856,7 @@ function wireEvents() {
   $("#questionForm").addEventListener("submit", handleQuestionSubmit);
   $("#resetQuestionForm").addEventListener("click", resetQuestionForm);
   $("#questionSearch").addEventListener("input", renderAdminQuestions);
+  $("#deleteGdqpQuestions").addEventListener("click", deleteAllGdqpQuestions);
   $("#adminQuestionList").addEventListener("click", async event => {
     const edit = event.target.closest("[data-edit-question]");
     const del = event.target.closest("[data-delete-question]");
