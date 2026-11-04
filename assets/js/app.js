@@ -16,7 +16,8 @@ const SUBJECTS = [
   { id: "dia-ly", name: "Địa lí", grade: 11, icon: "⌖", subtitle: "Địa lí 11" },
   { id: "gdkt-pl", name: "KT & Pháp luật", grade: 11, icon: "§", subtitle: "Kinh tế và Pháp luật 11" },
   { id: "tin-hoc", name: "Tin học", grade: 11, icon: "⌘", subtitle: "Tin học 11" },
-  { id: "cong-nghe", name: "Công nghệ", grade: 11, icon: "⚙", subtitle: "Công nghệ cơ khí 11" }
+  { id: "cong-nghe", name: "Công nghệ", grade: 11, icon: "⚙", subtitle: "Công nghệ cơ khí 11" },
+  { id: "gdqp-an", name: "GDQP-AN", grade: 11, icon: "🛡", subtitle: "Giáo dục Quốc phòng và An ninh 11" }
 ];
 const HISTORY_KEY = "ontap_history_v1";
 const QUESTIONS_KEY = "ontap_demo_questions_v1";
