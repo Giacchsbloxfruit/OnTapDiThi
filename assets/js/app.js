@@ -38,6 +38,8 @@ let activePractice = null;
 let activeExam = null;
 let examTimer = null;
 let importFileContent = null;
+let pendingImportQuestions = null;
+let pendingImportFileName = "";
 let lastResult = null;
 let localHistory = readLocal(HISTORY_KEY, []);
 
@@ -363,7 +365,7 @@ async function saveQuestionRecord(question) {
   }
   if (!isAdmin) throw new Error("Bạn không có quyền quản trị.");
   const { ref, set } = firebaseSdk;
-  const publicData = { subject: question.subject, subjectName: question.subjectName, grade: question.grade, topic: question.topic, type: question.type, question: question.question, options: question.options, updatedAt: Date.now() };
+  const publicData = { subject: question.subject, subjectName: question.subjectName, grade: question.grade, topic: question.topic, type: question.type, question: question.question, options: question.options, ...(question.importBatchId ? { importBatchId: question.importBatchId, importFileName: question.importFileName, importedAt: question.importedAt } : {}), updatedAt: Date.now() };
   const keyData = { correctAnswer: question.correctAnswer, explanation: question.explanation || "" };
   await Promise.all([
     set(ref(database, `questionsPublic/${question.id}`), publicData),
@@ -528,23 +530,96 @@ function normalizeQuestion(raw, index) {
     : Object.fromEntries(letters.filter(letter => options[letter] != null && String(options[letter]).trim()).map(letter => [letter, String(options[letter]).trim()]));
   const correctAnswer = String(raw.correctAnswer || raw.answer || "").trim().toUpperCase();
   if (!question || Object.keys(normalizedOptions).length < 2 || !normalizedOptions[correctAnswer]) throw new Error(`Câu ${index + 1}: thiếu nội dung, đáp án lựa chọn hoặc đáp án đúng hợp lệ.`);
-  return { id: raw.id || uid("import"), subject: raw.subject || "cong-nghe", subjectName: raw.subjectName || "Công nghệ", grade: Number(raw.grade || 11), topic: raw.topic || "Chưa phân chủ đề", type: raw.type || "mcq", question, options: normalizedOptions, correctAnswer, explanation: String(raw.explanation || "") };
+  return { id: uid("import"), subject: raw.subject || "cong-nghe", subjectName: raw.subjectName || "Công nghệ", grade: Number(raw.grade || 11), topic: raw.topic || "Chưa phân chủ đề", type: raw.type || "mcq", question, options: normalizedOptions, correctAnswer, explanation: String(raw.explanation || "") };
 }
-async function runImport() {
-  if (!importFileContent) return;
-  if (!firebaseReady || !currentUser || !isAdmin) { toast("Chỉ tài khoản Admin đã đăng nhập mới được nhập dữ liệu.", "error"); return; }
+async function previewImportFile(file) {
+  importFileContent = await file.text();
+  pendingImportQuestions = null;
+  pendingImportFileName = file.name;
   const status = $("#importStatus");
   try {
     const parsed = JSON.parse(importFileContent);
     const list = Array.isArray(parsed) ? parsed : parsed.questions;
     if (!Array.isArray(list) || !list.length) throw new Error("File cần chứa một mảng câu hỏi hoặc thuộc tính questions.");
     const normalized = list.map(normalizeQuestion);
-    for (const question of normalized) await saveQuestionRecord(question);
+    pendingImportQuestions = normalized;
+    $("#importPreview").innerHTML = `<strong>${escapeHtml(file.name)}</strong><span>${normalized.length} câu hợp lệ · Chưa nhập lên Firebase</span><ol>${normalized.slice(0,5).map(q=>`<li>${escapeHtml(q.question)}</li>`).join("")}</ol>${normalized.length>5?`<small>Hiển thị 5/${normalized.length} câu đầu tiên.</small>`:""}`;
+    $("#importPreview").hidden = false;
+    $("#runImport").disabled = false;
+    status.textContent = "Đã kiểm tra cấu trúc file. Hãy xem trước rồi mới nhấn Nhập câu hỏi.";
+  } catch (error) {
+    $("#importPreview").hidden = true;
+    $("#runImport").disabled = true;
+    status.textContent = `File có lỗi: ${error.message}`;
+    throw error;
+  }
+}
+async function runImport() {
+  if (!pendingImportQuestions?.length) return;
+  if (!firebaseReady || !currentUser || !isAdmin) { toast("Chỉ tài khoản Admin đã đăng nhập mới được nhập dữ liệu.", "error"); return; }
+  const status = $("#importStatus");
+  const normalized = pendingImportQuestions;
+  const batchId = uid("batch");
+  const importedAt = Date.now();
+  const batchRef = firebaseSdk.ref(database, `questionImportBatches/${batchId}`);
+  const batchRecord = { id: batchId, fileName: pendingImportFileName || "unknown.json", importedAt, count: normalized.length, questionIds: normalized.map(q => q.id), status: "importing" };
+  const button = $("#runImport");
+  button.disabled = true;
+  button.textContent = "Đang nhập...";
+  try {
+    await firebaseSdk.set(batchRef, batchRecord);
+    for (const question of normalized) {
+      question.importBatchId = batchId;
+      question.importFileName = batchRecord.fileName;
+      question.importedAt = importedAt;
+      await saveQuestionRecord(question);
+    }
+    await firebaseSdk.update(batchRef, { status: "complete" });
     updateSubjectSelects(); renderSubjectCards(); renderAdminQuestions(); renderExams();
-    status.textContent = `Đã nhập thành công ${normalized.length} câu hỏi.`;
-    toast(`Đã nhập ${normalized.length} câu hỏi.`);
-    importFileContent = null; $("#importFile").value = ""; $("#runImport").disabled = true;
-  } catch (error) { status.textContent = error.message; toast(error.message, "error"); }
+    status.textContent = `Đã nhập ${normalized.length} câu từ file “${batchRecord.fileName}”.`;
+    toast(`Đã nhập ${normalized.length} câu hỏi từ ${batchRecord.fileName}.`);
+    importFileContent = null; pendingImportQuestions = null; pendingImportFileName = "";
+    $("#importFile").value = ""; $("#importPreview").hidden = true; button.disabled = true; button.textContent = "Nhập câu hỏi";
+    await renderImportBatches();
+  } catch (error) {
+    await firebaseSdk.update(batchRef, { status: "partial", error: String(error.message || error) }).catch(()=>{});
+    status.textContent = `Nhập chưa hoàn tất: ${error.message || error}. Lô đã được ghi nhận để bạn có thể xóa phần đã nhập.`;
+    toast("Nhập file chưa hoàn tất. Hãy kiểm tra danh sách lô nhập.", "error");
+    button.disabled = false;
+    button.textContent = "Thử nhập lại";
+    await renderImportBatches();
+  }
+}
+async function renderImportBatches() {
+  const host = $("#importBatchList");
+  if (!host) return;
+  if (!firebaseReady || !currentUser || !isAdmin) {
+    host.innerHTML = '<div class="empty-list">Đăng nhập Admin để xem các file đã nhập.</div>';
+    return;
+  }
+  try {
+    const snap = await firebaseSdk.get(firebaseSdk.ref(database, "questionImportBatches"));
+    const batches = snap.exists() ? Object.entries(snap.val()).map(([id,row])=>({id,...row})).sort((a,b)=>(b.importedAt||0)-(a.importedAt||0)) : [];
+    host.innerHTML = batches.length ? batches.map(batch=>`<div class="question-list-item"><div><strong>${escapeHtml(batch.fileName||"File không tên")}</strong><small>${Number(batch.count)||0} câu · ${new Date(batch.importedAt||Date.now()).toLocaleString("vi-VN")} · ${batch.status==="complete"?"Đã nhập":batch.status==="partial"?"Nhập chưa hoàn tất":"Đang nhập"}</small></div><div class="mini-actions"><button class="delete" data-delete-import-batch="${escapeHtml(batch.id)}">Xóa file</button></div></div>`).join("") : '<div class="empty-list">Chưa có file nào được nhập bằng chức năng quản lý lô.</div>';
+  } catch(error) { host.innerHTML='<div class="empty-list">Không tải được danh sách file nhập.</div>'; console.error(error); }
+}
+async function deleteImportBatch(batchId) {
+  if (!firebaseReady || !currentUser || !isAdmin) throw new Error("Chỉ Admin mới được xóa file đã nhập.");
+  const batchRef = firebaseSdk.ref(database, `questionImportBatches/${batchId}`);
+  const snap = await firebaseSdk.get(batchRef);
+  if (!snap.exists()) throw new Error("Không tìm thấy thông tin file nhập.");
+  const batch = snap.val();
+  const ids = new Set([...(batch.questionIds || []), ...questions.filter(q=>q.importBatchId===batchId).map(q=>q.id)]);
+  if (!confirm(`Xóa file “${batch.fileName||"không tên"}” và toàn bộ ${ids.size} câu hỏi thuộc file này? Chỉ các câu của file này bị xóa.`)) return;
+  const phrase = prompt('Nhập chính xác tên file để xác nhận xóa:');
+  if (phrase !== (batch.fileName || "unknown.json")) { toast("Tên file không khớp. Đã hủy xóa."); return; }
+  let deleted=0; const failures=[];
+  for (const id of ids) { try { await deleteQuestionRecord(id); deleted++; } catch(error) { failures.push({id,message:error.message||"Lỗi"}); } }
+  if (!failures.length) await firebaseSdk.remove(batchRef);
+  updateSubjectSelects(); renderSubjectCards(); renderAdminQuestions(); renderExams();
+  await renderImportBatches();
+  if (failures.length) toast(`Đã xóa ${deleted}/${ids.size} câu; còn ${failures.length} câu lỗi. Lô vẫn được giữ để thử lại.`,"error");
+  else toast(`Đã xóa file “${batch.fileName}” và ${deleted} câu hỏi.`);
 }
 function exportQuestions() {
   if (!firebaseReady || !currentUser || !isAdmin) { toast("Chỉ tài khoản Admin mới được xuất kho câu hỏi.", "error"); return; }
@@ -801,6 +876,7 @@ async function onUserChanged(user) {
 
   if (!isAdmin && $("#view-admin").classList.contains("active")) switchView("home");
   renderAdminQuestions();
+  renderImportBatches();
   renderStats();
   if (firebaseReady && user) await refreshHistory();
   if ($("#view-top")?.classList.contains("active")) await loadTop();
@@ -876,10 +952,18 @@ function wireEvents() {
   $("#importFile").addEventListener("change", async event => {
     const file = event.target.files?.[0];
     if (!file) return;
-    try { importFileContent = await file.text(); $("#runImport").disabled = false; $("#importStatus").textContent = `Đã chọn ${file.name}.`; }
-    catch { importFileContent = null; $("#runImport").disabled = true; $("#importStatus").textContent = "Không thể đọc file."; }
+    try { await previewImportFile(file); }
+    catch (error) { importFileContent = null; pendingImportQuestions = null; $("#importStatus").textContent = error.message || "Không thể đọc file."; }
   });
   $("#runImport").addEventListener("click", runImport);
+  $("#importBatchList").addEventListener("click", async event => {
+    const button = event.target.closest("[data-delete-import-batch]");
+    if (!button) return;
+    button.disabled = true;
+    try { await deleteImportBatch(button.dataset.deleteImportBatch); }
+    catch (error) { toast(error.message || "Không thể xóa file nhập.", "error"); }
+    finally { button.disabled = false; }
+  });
   $("#downloadTemplate").addEventListener("click", downloadTemplate);
   $("#exportQuestions").addEventListener("click", exportQuestions);
   $("#clearLocalHistory").addEventListener("click", () => {
@@ -902,6 +986,7 @@ async function init() {
   renderStats();
   renderAdminQuestions();
   wireEvents();
+  renderImportBatches();
   resetQuestionForm();
   if (firebaseReady) {
     firebaseSdk.onAuthStateChanged(authService, onUserChanged);
