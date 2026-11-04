@@ -116,3 +116,36 @@ body[data-device-mode="computer"] .mobile-menu { display:none; }
 @media(prefers-reduced-motion:reduce) {
   .sidebar,.device-choice,.mode-switch { transition:none !important; }
 }
+
+/* Stronger answer feedback contrast */
+.answer-option.correct {
+  border: 2px solid #20d99a;
+  background: #075c43;
+  color: #f0fff8;
+  box-shadow: 0 0 0 1px rgba(32,217,154,.16), 0 5px 18px rgba(13,190,128,.14);
+}
+.answer-option.correct .answer-letter {
+  background: #12a875;
+  color: #ffffff;
+}
+.answer-option.wrong {
+  border: 2px solid #ff526f;
+  background: #6d1d31;
+  color: #fff1f3;
+  box-shadow: 0 0 0 1px rgba(255,82,111,.16), 0 5px 18px rgba(255,60,95,.12);
+}
+.answer-option.wrong .answer-letter {
+  background: #d93657;
+  color: #ffffff;
+}
+.feedback-box.good {
+  border: 1px solid #20d99a;
+  background: rgba(7,92,67,.38);
+}
+.feedback-box.bad {
+  border: 1px solid #ff526f;
+  background: rgba(109,29,49,.38);
+}
+.feedback-box.good strong { color: #72f2bd; }
+.feedback-box.bad strong { color: #ff91a3; }
+
